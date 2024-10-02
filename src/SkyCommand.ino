@@ -3,10 +3,13 @@
 //#define USE_TIMER_1 true
 
 #include <limits.h>
+#include "therm.h"
 
-// Pin Definitions
+// Arduino Nano Pin Definitions
 const int txPin = 3;
 const int rxPin = 2;
+const int SCRThermPin = 18; //A4
+
 
 // Timing Constants
 const int preamble = 7000; //microseconds
@@ -33,6 +36,9 @@ int checkByte = 5;
 
 double temp = 0.0;
 char CorF = 'F';
+
+float SCRTemp = 0;
+
 
 //Failsafe variables
 const int maxTemp = 300;
@@ -228,6 +234,7 @@ void getRoasterMessage() {
 #endif
   roasterReadAttempts = 0; //reset counter
   temp = calculateTemp();
+  SCRTemp = get_SCR_temp(analogRead(SCRThermPin));
 }
 void handleHEAT(uint8_t value) {
   if (value <= 100) {
@@ -273,7 +280,7 @@ void handleCHAN() {
 void handleREAD() {
   Serial.print(0.0);
   Serial.print(',');
-  Serial.print(temp);
+  Serial.print(double(SCRTemp));
   Serial.print(',');
   Serial.print(temp);
   Serial.print(',');
@@ -366,6 +373,28 @@ void failSafeChecks() {
   }
 }
 
+float interpolate_temp(float countActual, float countsA, float valueA, float countsB, float valueB){
+  float slope = (valueB-valueA)/(countsB-countsA);
+  float deltaTemp = slope*(countActual-countsB);
+  return deltaTemp+valueB;
+}
+
+float get_SCR_temp(int ActualCounts) {
+  int i = 0;
+  float currCounts = 0;
+  for (i; i < 136; i++) {
+    currCounts = pgm_read_float_near(temptable_1 + i);
+    if ((float)ActualCounts > currCounts) {
+      float countsA = pgm_read_float_near(temptable_1 + i - 2);
+      float valueA = pgm_read_float_near(temptable_1 + i - 1);
+      float valueB = pgm_read_float_near(temptable_1 + i + 1);
+      return interpolate_temp((float)ActualCounts, countsA, valueA, currCounts, valueB);
+    }
+    i++;
+  }
+ 
+  return 0;
+}
 
 void setup() {
   //ok.. Talking to myself here.. but lets do a sanity check.
@@ -375,6 +404,7 @@ void setup() {
   Serial.setTimeout(100);
   pinMode(txPin, OUTPUT);
   pinMode(rxPin, INPUT);
+  pinMode(SCRThermPin, INPUT);
   shutdown();
 
   //ITimer1.init();
