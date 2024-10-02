@@ -37,6 +37,11 @@ int checkByte = 5;
 double temp = 0.0;
 char CorF = 'F';
 
+#define FILTER_LENGTH 6
+#define TRIG 13 //DegC
+
+int SCRArrayPtr = 0;
+float SCRTempBuff[FILTER_LENGTH];
 float SCRTemp = 0;
 
 
@@ -234,8 +239,22 @@ void getRoasterMessage() {
 #endif
   roasterReadAttempts = 0; //reset counter
   temp = calculateTemp();
-  SCRTemp = get_SCR_temp(analogRead(SCRThermPin));
+  
+  float temp = get_SCR_temp(analogRead(SCRThermPin));
+  if (abs(temp-SCRTemp) <= TRIG)
+    SCRTempBuff[SCRArrayPtr] = temp;
+  else
+    return;
+  SCRArrayPtr++;
+  if (SCRArrayPtr == FILTER_LENGTH)
+      SCRArrayPtr = 0;
+  temp = 0;
+  for (int i=0; i<FILTER_LENGTH; i++){
+    temp+=SCRTempBuff[i];
+  }
+  SCRTemp = temp/FILTER_LENGTH;
 }
+
 void handleHEAT(uint8_t value) {
   if (value <= 100) {
     setValue(&sendBuffer[heatByte], value);
@@ -406,6 +425,16 @@ void setup() {
   pinMode(rxPin, INPUT);
   pinMode(SCRThermPin, INPUT);
   shutdown();
+
+  float temp=0;
+  for (SCRArrayPtr=0; SCRArrayPtr<FILTER_LENGTH; SCRArrayPtr++){
+    SCRTempBuff[SCRArrayPtr] = get_SCR_temp(analogRead(SCRThermPin));
+    temp+=SCRTempBuff[SCRArrayPtr];
+    delayMicroseconds(500);
+  }
+
+  SCRArrayPtr=0;
+  SCRTemp = temp/FILTER_LENGTH;
 
   //ITimer1.init();
   //ITimer1.attachInterruptInterval(750, sendRoasterMessage);
