@@ -35,6 +35,7 @@ int heatByte = 4;
 int checkByte = 5;
 
 double temp = 0.0;
+double tempC = 0.0;
 char CorF = 'F';
 
 #define FILTER_LENGTH 6
@@ -46,7 +47,7 @@ float SCRTemp = 0;
 
 
 //Failsafe variables
-const int maxTemp = 300;
+const int maxTemp = 300; //in Celcius
 unsigned long lastEventTime = 0;
 unsigned long lastEventTimeout = 10000000;
 bool failedToReadRoaster = false;
@@ -125,7 +126,7 @@ double calculateTemp() {
              + 247.6124684730026 * y * y * y + -555.8643213534281 * x * x * x * x
              + 3879.431274654493 * x * x * x * y + -6885.682277959339 * x * x * y * y
              + 2868.4191998911865 * x * y * y * y + -1349.1588373011923 * y * y * y * y;
-
+  tempC = (v - 32) * 5 / 9;
   if (CorF == 'C') v = (v - 32) * 5 / 9;
 
   return v;
@@ -371,8 +372,8 @@ bool itsbeentoolong() {  //Checks if too much time has passed since the last con
   return false;
 }
 
-bool isTemperatureOverLimit() {  //Checks if the current temperature exceeds the maximum allowed temperature
-  if (temp > maxTemp) {
+bool isTemperatureOverLimit() {  //Checks if the current temperature exceeds the maximum allowed temperature in celcius
+  if (tempC > maxTemp) {
     return true;
   }
   return false;
